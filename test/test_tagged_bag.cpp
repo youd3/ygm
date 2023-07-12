@@ -11,7 +11,7 @@
 #include <ygm/container/tagged_bag.hpp>
 
 using string_bag = ygm::container::tagged_bag<std::string>;
-using tag_type   = ygm::container::tagged_bag<std::string>::tag_type;
+using tag_type   = ygm::container::tagged_bag<std::string>::key_type;
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
 
