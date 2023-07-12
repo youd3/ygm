@@ -15,6 +15,7 @@ struct counting_set_tag;
 struct disjoint_set_tag;
 struct map_tag;
 struct set_tag;
+struct tagged_bag_tag;
 
 
 // General template used as a base case
@@ -73,6 +74,11 @@ constexpr bool is_map(Container &c) {
 template <class Container>
 constexpr bool is_set(Container &c) {
     return check_ygm_container_type<Container, set_tag>();
+}
+
+template <class Container>
+constexpr bool is_tagged_bag(Container &c) {
+    return check_ygm_container_type<Container, tagged_bag_tag>();
 }
 
 }   // ygm::container

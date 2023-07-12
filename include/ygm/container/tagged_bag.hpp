@@ -7,6 +7,7 @@
 #include <ygm/comm.hpp>
 #include <ygm/container/map.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
+#include <ygm/container/container_traits.hpp>
 
 namespace ygm::container {
 
@@ -18,39 +19,47 @@ namespace ygm::container {
 template <typename Item, typename Alloc = std::allocator<Item>>
 class tagged_bag {
  public:
-  using tag_type   = size_t;
-  using value_type = Item;
-  using self_type  = tagged_bag<Item, Alloc>;
+  //using tag_type   = size_t;
+  //using value_type = Item;
+  
+  using self_type           = tagged_bag<Item, Alloc>;
+  using tag_type            = size_t;
+  using mapped_type         = Item;
+  using key_type            = tag_type;
+  using size_type           = size_t;
+  using ygm_for_all_types   = std::tuple< key_type, mapped_type >;
+  using ygm_container_type  = ygm::container::tagged_bag_tag;
+
 
   tagged_bag(const tagged_bag &)                = delete;
   tagged_bag(tagged_bag &&) noexcept            = delete;
   tagged_bag &operator=(const tagged_bag &)     = delete;
   tagged_bag &operator=(tagged_bag &&) noexcept = delete;
   tagged_bag(ygm::comm &comm)
-      : m_next_tag(tag_type(comm.rank()) << TAG_BITS),
-        m_tagged_bag(ygm::container::map<tag_type, value_type>(comm)),
+      : m_next_tag(key_type(comm.rank()) << TAG_BITS),
+        m_tagged_bag(ygm::container::map<key_type, mapped_type>(comm)),
         pthis(this) {}
   ~tagged_bag() = default;
 
-  tag_type async_insert(const value_type &item) {
+  tag_type async_insert(const mapped_type &item) {
     tag_type tag = m_next_tag++;
     m_tagged_bag.async_insert(tag, item);
     return tag;
   }
 
   template <typename Visitor, typename... VisitorArgs>
-  void async_visit(const tag_type &tag, Visitor visitor,
+  void async_visit(const key_type &tag, Visitor visitor,
                    const VisitorArgs &...args) {
     return m_tagged_bag.async_visit(tag, visitor, args...);
   }
 
   template <typename Visitor, typename... VisitorArgs>
-  void async_visit_if_exists(const tag_type &tag, Visitor visitor,
+  void async_visit_if_exists(const key_type &tag, Visitor visitor,
                              const VisitorArgs &...args) {
     return m_tagged_bag.async_visit_if_exists(tag, visitor, args...);
   }
 
-  void async_erase(const tag_type &tag) {
+  void async_erase(const key_type &tag) {
     return m_tagged_bag.async_erase(tag);
   }
 
@@ -72,25 +81,25 @@ class tagged_bag {
 
   // TODO sbromberger 20230626: serialize and deserialize
 
-  [[nodiscard]] int owner(const tag_type &tag) const {
+  [[nodiscard]] int owner(const key_type &tag) const {
     return m_tagged_bag.owner(tag);
   }
 
-  [[nodiscard]] bool is_mine(const tag_type &tag) const {
+  [[nodiscard]] bool is_mine(const key_type &tag) const {
     return m_tagged_bag.is_mine(tag);
   }
 
-  std::vector<value_type> local_get(const tag_type &tag) {
+  std::vector<mapped_type> local_get(const key_type &tag) {
     return m_tagged_bag.local_get(tag);
   }
 
   template <typename Function, typename... VisitorArgs>
-  void local_visit(const tag_type &tag, Function &fn,
+  void local_visit(const key_type &tag, Function &fn,
                    const VisitorArgs &...args) {
     return m_tagged_bag.local_visit(tag, fn, args...);
   }
 
-  void local_erase(const tag_type &tag) { m_tagged_bag.m_local_map.erase(tag); }
+  void local_erase(const key_type &tag) { m_tagged_bag.m_local_map.erase(tag); }
 
   void local_clear() { m_tagged_bag.m_local_map.clear(); }
 
@@ -99,11 +108,11 @@ class tagged_bag {
   }
 
   template <typename STLKeyContainer>
-  std::map<tag_type, value_type> all_gather(const STLKeyContainer &tags) {
+  std::map<key_type, mapped_type> all_gather(const STLKeyContainer &tags) {
     return m_tagged_bag.all_gather(tags);
   }
 
-  std::map<tag_type, value_type> all_gather(const std::vector<tag_type> &tags) {
+  std::map<key_type, mapped_type> all_gather(const std::vector<key_type> &tags) {
     return m_tagged_bag.all_gather(tags);
   }
   template <typename Function>
@@ -117,7 +126,7 @@ class tagged_bag {
   const tag_type TAG_BITS = 40;
   const tag_type MAX_TAGS = (size_t(1) << TAG_BITS) - 1;
   tag_type       m_next_tag;
-  ygm::container::map<tag_type, value_type> m_tagged_bag;
+  ygm::container::map<key_type, mapped_type> m_tagged_bag;
   typename ygm::ygm_ptr<self_type>          pthis;
 };
 }  // namespace ygm::container
